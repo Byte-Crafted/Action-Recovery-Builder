@@ -14,23 +14,23 @@ on:
       DEVICE_TREE_URL:
         description: Device Tree URL
         required: true
-        default: 'https://github.com/saadelasfur/orangefox_device_samsung_m52xq.git'
+        default: 'https://github.com/Byte-Crafted/twrp_device_samsung_r9q.git'
       DEVICE_TREE_BRANCH:
         description: Device Tree Branch
         required: true
-        default: 'fox_12.1'
+        default: 'android-12.1'
       DEVICE_PATH:
         description: Device Path
         required: true
-        default: 'device/samsung/m52xq'
+        default: 'device/samsung/r9q'
       DEVICE_NAME:
         description: Device Name
         required: true
-        default: 'm52xq'
+        default: 'r9q'
       MAKEFILE_NAME:
         description: Makefile Name
         required: true
-        default: 'twrp_m52xq'
+        default: 'fox_r9q'
       BUILD_TARGET:
         description: Build Target
         required: true
@@ -38,7 +38,7 @@ on:
       OFOX_VERSION:
         description: OFOX Version
         required: true
-        default: 'R11.3_0_A14-Stable'
+        default: 'R12.1_Stable'
 
 jobs:
   build:
