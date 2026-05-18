@@ -93,6 +93,10 @@ jobs:
             git python3 tar aria2
         git clone https://gitlab.com/OrangeFox/misc/scripts.git
         cd scripts
+        export OF_SKIP_FBE_DECRYPTION_SDKVERSION=36
+        export OF_DONT_PATCH_ENCRYPTED_DEVICE=1
+        export OF_TWRP_COMPATIBILITY_MODE=1
+        export OF_USE_LEGACY_BATTERY_SERVICES=1
         sudo bash setup/android_build_env.sh
         sed -i 's/cd -/cd ../g' setup/install_android_sdk.sh
         sudo bash setup/install_android_sdk.sh
