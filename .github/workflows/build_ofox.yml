@@ -35,10 +35,6 @@ on:
         description: Build Target
         required: true
         default: 'recovery'
-      OFOX_VERSION:
-        description: OFOX Version
-        required: true
-        default: 'R11.3_0_A14-Stable'
 
 env:
   SYNC_URL: ${{ github.event.inputs.SYNC_URL }}
@@ -49,7 +45,6 @@ env:
   DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME }}
   MAKEFILE_NAME: ${{ github.event.inputs.MAKEFILE_NAME }}
   BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET }}
-  OFOX_VERSION: ${{ github.event.inputs.OFOX_VERSION }}
 
 jobs:
   build:
@@ -69,7 +64,6 @@ jobs:
         echo "Device Name: ${{ env.DEVICE_NAME }}"
         echo "Makefile Name: ${{ env.MAKEFILE_NAME }}"
         echo "Build Target: ${{ env.BUILD_TARGET }}.img"
-        echo "OFOX Version: ${{ env.OFOX_VERSION }}"
         echo "::endgroup::"
 
     - name: Check Out
@@ -101,7 +95,7 @@ jobs:
         sudo apt update && sudo apt upgrade -y
         DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
             linux-modules-extra-$(uname -r) \
-            git python3 tar aria2
+            git python3 tar aria2 jq
         git clone https://gitlab.com/OrangeFox/misc/scripts.git
         cd scripts
         sudo bash setup/android_build_env.sh
@@ -119,6 +113,12 @@ jobs:
       run: |
         cd ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}
         git clone ${{ env.DEVICE_TREE_URL }} -b ${{ env.DEVICE_TREE_BRANCH }} ./${{ env.DEVICE_PATH }}
+
+    - name: Extract OrangeFox version info
+      run: |
+        FOX_VER=$(curl -fsSL "https://api.orangefox.download/releases/get" | jq -r ".version" | cut -d "_" -f1)
+        source "${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}/${{ env.DEVICE_PATH }}/vendorsetup.sh"
+        echo "OFOX_VERSION=${FOX_VER}_${FOX_MAINTAINER_PATCH_VERSION:-0}-${FOX_BUILD_TYPE:-Beta}" >> $GITHUB_ENV
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
