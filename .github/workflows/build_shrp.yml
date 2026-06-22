@@ -72,7 +72,7 @@ jobs:
         echo "SHRP Version: ${{ env.SHRP_VERSION }}"
         echo "::endgroup::"
 
-    - name: Check Out
+    - name: Checkout
       uses: actions/checkout@v7
 
     - name: Cleanup
@@ -89,7 +89,7 @@ jobs:
             build-essential libgtk-3-dev libglu1-mesa-dev freeglut3-dev git libxml2 lzop pngcrush schedtool squashfs-tools \
             imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses6 python3 tar
 
-    - name: Set up Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
         node-version: 'latest'
@@ -131,7 +131,7 @@ jobs:
       with:
         swap-size-gb: 12
 
-    - name: Building recovery
+    - name: Build recovery
       run: |
         cd ${{ env.WORKSPACE }}
         export ALLOW_MISSING_DEPENDENCIES=true
@@ -142,26 +142,22 @@ jobs:
       run: |
         echo "DATE_SHORT=$(date +%Y%m%d)" >> $GITHUB_ENV
         echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
-        echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
 
-    - name: Archive the files
+    - name: Archive files
       run: |
-        cd ${{ env.WORKSPACE }}
-        ls -a out/target/product/ && echo
-        ls -a out/target/product/${{ env.DEVICE_NAME }}/ && echo
-        cd out/target/product/${{ env.DEVICE_NAME }}
+        cd ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}
         tar -cvf SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.tar ${{ env.BUILD_TARGET }}.img
         mv ${{ env.BUILD_TARGET }}.img SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.img
-        mv *AddonRescue*.zip AddonRescue_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}.zip
+        rm -f *AddonRescue*.zip
         mv SHRP*.zip SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.zip
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v3
       with:
-        files: | 
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.img
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.tar
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.zip
+        files: |
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.img
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.tar
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/SHRP_${{ env.SHRP_VERSION }}_${{ env.DEVICE_NAME }}_${{ env.DATE_SHORT }}.zip
         name: shrp-${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}
         tag_name: ${{ env.DATE_TAG }}
         body: |

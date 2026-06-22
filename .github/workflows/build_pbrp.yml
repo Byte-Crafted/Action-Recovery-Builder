@@ -72,7 +72,7 @@ jobs:
         echo "PBRP Version: ${{ env.PBRP_VERSION }}"
         echo "::endgroup::"
 
-    - name: Check Out
+    - name: Checkout
       uses: actions/checkout@v7
 
     - name: Cleanup
@@ -89,7 +89,7 @@ jobs:
             build-essential libgtk-3-dev libglu1-mesa-dev freeglut3-dev git libxml2 lzop pngcrush schedtool squashfs-tools \
             imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses6 python3 tar
 
-    - name: Set up Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
         node-version: 'latest'
@@ -131,7 +131,7 @@ jobs:
       with:
         swap-size-gb: 12
 
-    - name: Building recovery
+    - name: Build recovery
       run: |
         cd ${{ env.WORKSPACE }}
         export ALLOW_MISSING_DEPENDENCIES=true
@@ -144,12 +144,9 @@ jobs:
         echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
         echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
 
-    - name: Archive the files
+    - name: Archive files
       run: |
-        cd ${{ env.WORKSPACE }}
-        ls -a out/target/product/ && echo
-        ls -a out/target/product/${{ env.DEVICE_NAME }}/ && echo
-        cd out/target/product/${{ env.DEVICE_NAME }}
+        cd ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}
         tar -cvf PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.tar ${{ env.BUILD_TARGET }}.img
         mv ${{ env.BUILD_TARGET }}.img PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.img
         mv PBRP*.zip PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.zip
@@ -157,10 +154,10 @@ jobs:
     - name: Upload to Release
       uses: softprops/action-gh-release@v3
       with:
-        files: | 
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.img
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.tar
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.zip
+        files: |
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.img
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.tar
+          ${{ env.WORKSPACE }}/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.zip
         name: pbrp-${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}
         tag_name: ${{ env.DATE_TAG }}
         body: |
