@@ -38,7 +38,7 @@ on:
       TWRP_VERSION:
         description: TWRP Version
         required: true
-        default: '3.7.1_12'
+        default: '3.7.1_12-0'
 
 env:
   MANIFEST_URL: ${{ github.event.inputs.MANIFEST_URL }}
@@ -150,15 +150,15 @@ jobs:
         ls -a out/target/product/ && echo
         ls -a out/target/product/${{ env.DEVICE_NAME }}/ && echo
         cd out/target/product/${{ env.DEVICE_NAME }}
-        tar -cvf twrp-${{ env.TWRP_VERSION }}-0-${{ env.DEVICE_NAME }}.img.tar ${{ env.BUILD_TARGET }}.img
-        mv ${{ env.BUILD_TARGET }}.img twrp-${{ env.TWRP_VERSION }}-0-${{ env.DEVICE_NAME }}.img
+        tar -cvf twrp-${{ env.TWRP_VERSION }}-${{ env.DEVICE_NAME }}.img.tar ${{ env.BUILD_TARGET }}.img
+        mv ${{ env.BUILD_TARGET }}.img twrp-${{ env.TWRP_VERSION }}-${{ env.DEVICE_NAME }}.img
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v3
       with:
         files: | 
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/twrp-${{ env.TWRP_VERSION }}-0-${{ env.DEVICE_NAME }}.img
-          workspace/out/target/product/${{ env.DEVICE_NAME }}/twrp-${{ env.TWRP_VERSION }}-0-${{ env.DEVICE_NAME }}.img.tar
+          workspace/out/target/product/${{ env.DEVICE_NAME }}/twrp-${{ env.TWRP_VERSION }}-${{ env.DEVICE_NAME }}.img
+          workspace/out/target/product/${{ env.DEVICE_NAME }}/twrp-${{ env.TWRP_VERSION }}-${{ env.DEVICE_NAME }}.img.tar
         name: twrp-${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}
         tag_name: ${{ env.DATE_TAG }}
         body: |
