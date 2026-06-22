@@ -40,6 +40,17 @@ on:
         required: true
         default: '4.0'
 
+env:
+  MANIFEST_URL: ${{ github.event.inputs.MANIFEST_URL }}
+  MANIFEST_BRANCH: ${{ github.event.inputs.MANIFEST_BRANCH }}
+  DEVICE_TREE_URL: ${{ github.event.inputs.DEVICE_TREE_URL }}
+  DEVICE_TREE_BRANCH: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}
+  DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH }}
+  DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME }}
+  MAKEFILE_NAME: ${{ github.event.inputs.MAKEFILE_NAME }}
+  BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET }}
+  PBRP_VERSION: ${{ github.event.inputs.PBRP_VERSION }}
+
 jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
@@ -50,15 +61,15 @@ jobs:
     - name: Display Run Parameters
       run: |
         echo "::group::User Environment Variables"
-        echo "Manifest URL: ${{ github.event.inputs.MANIFEST_URL }}"
-        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
-        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
-        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
-        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
-        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
-        echo "PBRP Version: ${{ github.event.inputs.PBRP_VERSION }}"
+        echo "Manifest URL: ${{ env.MANIFEST_URL }}"
+        echo "Manifest Branch: ${{ env.MANIFEST_BRANCH }}"
+        echo "Device Tree URL: ${{ env.DEVICE_TREE_URL }}"
+        echo "Device Tree Branch: ${{ env.DEVICE_TREE_BRANCH }}"
+        echo "Device Path: ${{ env.DEVICE_PATH }}"
+        echo "Device Name: ${{ env.DEVICE_NAME }}"
+        echo "Makefile Name: ${{ env.MAKEFILE_NAME }}"
+        echo "Build Target: ${{ env.BUILD_TARGET }}.img"
+        echo "PBRP Version: ${{ env.PBRP_VERSION }}"
         echo "::endgroup::"
 
     - name: Check Out
@@ -100,21 +111,20 @@ jobs:
       run: |
         mkdir workspace
         cd workspace
-        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
+        echo "WORKSPACE=$(pwd)" >> $GITHUB_ENV
         git config --global user.name "Saad"
         git config --global user.email "saadelasfur@gmail.com"
-        repo init --depth=1 -u ${{ github.event.inputs.MANIFEST_URL }} -b ${{ github.event.inputs.MANIFEST_BRANCH }}
-      id: pwd
+        repo init --depth=1 -u ${{ env.MANIFEST_URL }} -b ${{ env.MANIFEST_BRANCH }}
 
     - name: Repo Sync
       run: |
+        cd ${{ env.WORKSPACE }}
         repo sync -j$(nproc --all) --force-sync
-      working-directory: workspace
 
     - name: Clone device tree
       run: |
-        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        cd ${{ env.WORKSPACE }}
+        git clone ${{ env.DEVICE_TREE_URL }} -b ${{ env.DEVICE_TREE_BRANCH }} ./${{ env.DEVICE_PATH }}
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
@@ -123,40 +133,39 @@ jobs:
 
     - name: Building recovery
       run: |
+        cd ${{ env.WORKSPACE }}
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && mka pbrp -j$(nproc --all)
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        lunch ${{ env.MAKEFILE_NAME }}-eng && make clean && mka pbrp -j$(nproc --all)
 
     - name: Set Date Variables
       run: |
-        echo "DATE_SHORT=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
-        echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
-        echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
-      id: date
+        echo "DATE_SHORT=$(date +%Y%m%d)" >> $GITHUB_ENV
+        echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+        echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
 
     - name: Archive the files
       run: |
-        ls -a ${{ steps.pwd.outputs.workspace-folder }}/out/target/product/ && echo
-        ls -a ${{ steps.pwd.outputs.workspace-folder }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/ && echo
-        cd out/target/product/${{ github.event.inputs.DEVICE_NAME }}
-        tar -cvf PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.tar ${{ github.event.inputs.BUILD_TARGET }}.img
-        mv ${{ github.event.inputs.BUILD_TARGET }}.img PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.img
-        mv PBRP*.zip PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.zip
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        cd ${{ env.WORKSPACE }}
+        ls -a out/target/product/ && echo
+        ls -a out/target/product/${{ env.DEVICE_NAME }}/ && echo
+        cd out/target/product/${{ env.DEVICE_NAME }}
+        tar -cvf PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.tar ${{ env.BUILD_TARGET }}.img
+        mv ${{ env.BUILD_TARGET }}.img PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.img
+        mv PBRP*.zip PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.zip
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v3
       with:
         files: | 
-          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.img
-          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.tar
-          workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/PBRP-${{ github.event.inputs.DEVICE_NAME }}-${{ github.event.inputs.PBRP_VERSION }}-${{ steps.date.outputs.DATE_LONG }}.zip
-        name: pbrp-${{ github.event.inputs.DEVICE_NAME }}-${{ steps.date.outputs.DATE_SHORT }}
-        tag_name: ${{ steps.date.outputs.DATE_TAG }}
+          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.img
+          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.tar
+          workspace/out/target/product/${{ env.DEVICE_NAME }}/PBRP-${{ env.DEVICE_NAME }}-${{ env.PBRP_VERSION }}-${{ env.DATE_LONG }}.zip
+        name: pbrp-${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}
+        tag_name: ${{ env.DATE_TAG }}
         body: |
-          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
-          Target: ${{ github.event.inputs.BUILD_TARGET }}
+          Manifest: ${{ env.MANIFEST_BRANCH }}
+          Device: ${{ env.DEVICE_NAME }}
+          Target: ${{ env.BUILD_TARGET }}
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}

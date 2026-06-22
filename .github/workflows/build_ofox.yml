@@ -40,6 +40,17 @@ on:
         required: true
         default: 'R11.3_0_A14-Stable'
 
+env:
+  SYNC_URL: ${{ github.event.inputs.SYNC_URL }}
+  MANIFEST_BRANCH: ${{ github.event.inputs.MANIFEST_BRANCH }}
+  DEVICE_TREE_URL: ${{ github.event.inputs.DEVICE_TREE_URL }}
+  DEVICE_TREE_BRANCH: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}
+  DEVICE_PATH: ${{ github.event.inputs.DEVICE_PATH }}
+  DEVICE_NAME: ${{ github.event.inputs.DEVICE_NAME }}
+  MAKEFILE_NAME: ${{ github.event.inputs.MAKEFILE_NAME }}
+  BUILD_TARGET: ${{ github.event.inputs.BUILD_TARGET }}
+  OFOX_VERSION: ${{ github.event.inputs.OFOX_VERSION }}
+
 jobs:
   build:
     if: github.event.repository.owner.id == github.event.sender.id
@@ -50,15 +61,15 @@ jobs:
     - name: Display Run Parameters
       run: |
         echo "::group::User Environment Variables"
-        echo "Sync URL: ${{ github.event.inputs.SYNC_URL }}"
-        echo "Manifest Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
-        echo "Device Tree URL: ${{ github.event.inputs.DEVICE_TREE_URL }}"
-        echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
-        echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
-        echo "Device Name: ${{ github.event.inputs.DEVICE_NAME }}"
-        echo "Makefile Name: ${{ github.event.inputs.MAKEFILE_NAME }}"
-        echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
-        echo "OFOX Version: ${{ github.event.inputs.OFOX_VERSION }}"
+        echo "Sync URL: ${{ env.SYNC_URL }}"
+        echo "Manifest Branch: ${{ env.MANIFEST_BRANCH }}"
+        echo "Device Tree URL: ${{ env.DEVICE_TREE_URL }}"
+        echo "Device Tree Branch: ${{ env.DEVICE_TREE_BRANCH }}"
+        echo "Device Path: ${{ env.DEVICE_PATH }}"
+        echo "Device Name: ${{ env.DEVICE_NAME }}"
+        echo "Makefile Name: ${{ env.MAKEFILE_NAME }}"
+        echo "Build Target: ${{ env.BUILD_TARGET }}.img"
+        echo "OFOX Version: ${{ env.OFOX_VERSION }}"
         echo "::endgroup::"
 
     - name: Check Out
@@ -82,11 +93,11 @@ jobs:
       run: |
         mkdir workspace
         cd workspace
-        echo "workspace-folder=$(pwd)" >> $GITHUB_OUTPUT
-      id: pwd
+        echo "WORKSPACE=$(pwd)" >> $GITHUB_ENV
 
     - name: Prepare the build environment
       run: |
+        cd ${{ env.WORKSPACE }}
         sudo apt update && sudo apt upgrade -y
         DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
             linux-modules-extra-$(uname -r) \
@@ -96,21 +107,18 @@ jobs:
         sudo bash setup/android_build_env.sh
         sed -i 's/cd -/cd ../g' setup/install_android_sdk.sh
         sudo bash setup/install_android_sdk.sh
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
 
     - name: Sync OrangeFox sources and minimal manifest
       run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}
-        git clone ${{ github.event.inputs.SYNC_URL }}
+        cd ${{ env.WORKSPACE }}
+        git clone ${{ env.SYNC_URL }}
         cd sync
-        ./orangefox_sync.sh --branch ${{ github.event.inputs.MANIFEST_BRANCH }} --path ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        ./orangefox_sync.sh --branch ${{ env.MANIFEST_BRANCH }} --path ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}
 
     - name: Clone device tree
       run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
-        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        cd ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}
+        git clone ${{ env.DEVICE_TREE_URL }} -b ${{ env.DEVICE_TREE_BRANCH }} ./${{ env.DEVICE_PATH }}
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
@@ -119,45 +127,43 @@ jobs:
 
     - name: Building recovery
       run: |
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}
+        cd ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}
         set +e
         export ALLOW_MISSING_DEPENDENCIES=true
-        export FOX_BUILD_DEVICE=${{ github.event.inputs.DEVICE_NAME }}
+        export FOX_BUILD_DEVICE=${{ env.DEVICE_NAME }}
         source build/envsetup.sh
         set -e
-        lunch ${{ github.event.inputs.MAKEFILE_NAME }}-eng && make clean && mka adbd ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        lunch ${{ env.MAKEFILE_NAME }}-eng && make clean && mka adbd ${{ env.BUILD_TARGET }}image -j$(nproc --all)
       continue-on-error: true
 
     - name: Set Date Variables
       run: |
-        echo "DATE_SHORT=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
-        echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
-        echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_OUTPUT
-      id: date
+        echo "DATE_SHORT=$(date +%Y%m%d)" >> $GITHUB_ENV
+        echo "DATE_TAG=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+        echo "DATE_LONG=$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
 
     - name: Archive the files
       run: |
-        ls -a ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/ && echo
-        ls -a ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/ && echo
-        cd ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}
-        tar -cvf OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.tar ${{ github.event.inputs.BUILD_TARGET }}.img
-        mv ${{ github.event.inputs.BUILD_TARGET }}.img OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.img
-        # mv OrangeFox*.zip OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.zip
-      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+        cd ${{ env.WORKSPACE }}
+        ls -a fox_${{ env.MANIFEST_BRANCH }}/out/target/product/ && echo
+        ls -a fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/ && echo
+        cd fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}
+        tar -cvf OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.tar ${{ env.BUILD_TARGET }}.img
+        mv ${{ env.BUILD_TARGET }}.img OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.img
+        # mv OrangeFox*.zip OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.zip
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v3
       with:
         files: |
-          ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.img
-          ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.tar
-          ${{ steps.pwd.outputs.workspace-folder }}/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox-${{ github.event.inputs.OFOX_VERSION }}-${{ github.event.inputs.DEVICE_NAME }}.zip
-        name: ofox-${{ github.event.inputs.DEVICE_NAME }}-${{ steps.date.outputs.DATE_SHORT }}
-        tag_name: ${{ steps.date.outputs.DATE_TAG }}
+          ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.img
+          ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.tar
+          ${{ env.WORKSPACE }}/fox_${{ env.MANIFEST_BRANCH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox-${{ env.OFOX_VERSION }}-${{ env.DEVICE_NAME }}.zip
+        name: ofox-${{ env.DEVICE_NAME }}-${{ env.DATE_SHORT }}
+        tag_name: ${{ env.DATE_TAG }}
         body: |
-          Manifest: ${{ github.event.inputs.MANIFEST_BRANCH }}
-          Device: ${{ github.event.inputs.DEVICE_NAME }}
-          Target: ${{ github.event.inputs.BUILD_TARGET }}
+          Manifest: ${{ env.MANIFEST_BRANCH }}
+          Device: ${{ env.DEVICE_NAME }}
+          Target: ${{ env.BUILD_TARGET }}
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
