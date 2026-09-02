@@ -55,6 +55,10 @@ jobs:
     steps:
     - name: Display Run Parameters
       run: |
+        export OF_SKIP_FBE_DECRYPTION_SDKVERSION=36
+        export OF_DONT_PATCH_ENCRYPTED_DEVICE=1
+        export OF_TWRP_COMPATIBILITY_MODE=1
+        export OF_USE_LEGACY_BATTERY_SERVICES=1
         echo "::group::User Environment Variables"
         echo "Sync URL: ${{ env.SYNC_URL }}"
         echo "Manifest Branch: ${{ env.MANIFEST_BRANCH }}"
